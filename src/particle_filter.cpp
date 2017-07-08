@@ -24,6 +24,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	//   x, y, theta and their uncertainties from GPS) and all weights to 1. 
 	// Add random Gaussian noise to each particle.
 	// NOTE: Consult particle_filter.h for more information about this method (and others in this file).
+    default_random_engine gen;
     num_particles=100; //number of particles
     
     //Sensor measurement Noise
@@ -52,7 +53,7 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 	// NOTE: When adding noise you may find std::normal_distribution and std::default_random_engine useful.
 	//  http://en.cppreference.com/w/cpp/numeric/random/normal_distribution
 	//  http://www.cplusplus.com/reference/random/default_random_engine/
-    
+    default_random_engine gen;
     //Noise
     normal_distribution<double> Noise_x(0, std_pos[0]);
     normal_distribution<double> Noise_y(0, std_pos[1]);
@@ -126,9 +127,11 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
         double p_y = particles[i].y;
         double p_theta = particles[i].theta;
         
+        vector<LandmarkObs> landmark_inrange;
+        
         for (int j = 0; j<map_landmarks.landmark_list.size(); j++) {
             
-            vector<landmarkObs> landmark_inrange
+            
             
             float l_x=map_landmarks.landmark_list[j].x_f;
             float l_y=map_landmarks.landmark_list[j].y_f;
@@ -187,7 +190,14 @@ void ParticleFilter::resample() {
 	// TODO: Resample particles with replacement with probability proportional to their weight. 
 	// NOTE: You may find std::discrete_distribution helpful here.
 	//   http://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
-
+    default_random_engine gen;
+    discrete_distribution<>dist_particles(weights.begin(),weights.end());
+    vector<Particle> new_particles(num_particles);
+    for (int i=0; i<num_particles; i++){
+        new_particles[i] = particles[dist_particles(gen)];
+    }
+    particles = new_particles;
+    
 }
 
 Particle ParticleFilter::SetAssociations(Particle particle, std::vector<int> associations, std::vector<double> sense_x, std::vector<double> sense_y)
