@@ -19,13 +19,23 @@
 
 using namespace std;
 
+
 void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	// TODO: Set the number of particles. Initialize all particles to first position (based on estimates of 
 	//   x, y, theta and their uncertainties from GPS) and all weights to 1. 
 	// Add random Gaussian noise to each particle.
 	// NOTE: Consult particle_filter.h for more information about this method (and others in this file).
     default_random_engine gen;
+    
     num_particles=100; //number of particles
+    
+    cout << "particles=100";
+    
+    // Create the vector to contain the `num_particles` particles
+    particles = vector<Particle>(num_particles);
+    
+    // Create the vector to contain the weight for each particle
+    weights = vector<double>(num_particles);
     
     //Sensor measurement Noise
     normal_distribution<double> Noise_x(0, std[0]);
@@ -45,7 +55,6 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
     }
     
     is_initialized=true;
-    
 }
 
 void ParticleFilter::prediction(double delta_t, double std_pos[], double velocity, double yaw_rate) {
@@ -53,8 +62,10 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 	// NOTE: When adding noise you may find std::normal_distribution and std::default_random_engine useful.
 	//  http://en.cppreference.com/w/cpp/numeric/random/normal_distribution
 	//  http://www.cplusplus.com/reference/random/default_random_engine/
-    default_random_engine gen;
+    //default_random_engine gen;
     //Noise
+    default_random_engine gen;
+    
     normal_distribution<double> Noise_x(0, std_pos[0]);
     normal_distribution<double> Noise_y(0, std_pos[1]);
     normal_distribution<double> Noise_theta(0, std_pos[2]);
@@ -93,7 +104,7 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
         double min_distance = numeric_limits<double>::max();
         int map_id=-1;
         
-        for (int j=1; j<predicted.size(); j++){
+        for (int j=0; j<predicted.size(); j++){
             
             LandmarkObs p = predicted[j];
             double distance=dist(o.x, o.y, p.x, p.y);
@@ -154,15 +165,48 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
         }
         dataAssociation(landmark_inrange,ob_mapcoordinates);
         //reset the weight
-        double new_weight=1.0;
+        double new_weight =1.0;
         
-        for (int j=0; j<ob_mapcoordinates.size(); j++){
+        double denominator = 2 * M_PI * std_landmark[0] * std_landmark[1];
+        double x_deno = 2 * pow(std_landmark[0], 2);
+        double y_deno = 2 * pow(std_landmark[1], 2);
+        for (int l = 0; l < ob_mapcoordinates.size(); l++)
+        {
+            LandmarkObs obs = ob_mapcoordinates[l];
+            LandmarkObs mu = landmark_inrange[obs.id];
+            double mu_x;
+            double mu_y;
+            
+            for (unsigned int m = 0; m < landmark_inrange.size(); m++)
+            {
+                if (landmark_inrange[m].id == obs.id)
+                {
+                    mu_x = landmark_inrange[m].x;
+                    mu_y = landmark_inrange[m].y;
+                }
+            }
+            
+            double x_diff = obs.x - mu_x;
+            double y_diff = obs.y - mu_y;
+            
+            
+            
+            new_weight *= exp(-(pow(x_diff, 2) / x_deno) - (pow(y_diff, 2) / y_deno)) / denominator;
+            
+            
+        }
+        
+        particles[i].weight = new_weight;
+        weights[i] = particles[i].weight;
+        
+        /*for (int j=0; j<ob_mapcoordinates.size(); j++){
             double ob_x=ob_mapcoordinates[j].x - p_x;
             double ob_y=ob_mapcoordinates[j].y - p_y;
             double ob_length = sqrt(ob_x * ob_x + ob_y * ob_y);
             double ob_angle = atan2(ob_y, ob_x);
-            double map_x=landmark_inrange[j].x - p_x;
-            double map_y=landmark_inrange[j].y - p_y;
+            int map_index = ob_mapcoordinates.id;
+            double map_x=landmark_inrange[map_index].x - p_x;
+            double map_y=landmark_inrange[map_index].y - p_y;
             double map_length = sqrt(map_x * map_x + map_y * map_y);
             double map_angle = atan2(map_y, map_x);
             double delta_length=ob_length-map_length;
@@ -173,12 +217,18 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
             double num_b = delta_angle * delta_angle / (2.0 * std_landmark[1] * std_landmark[1]);
             double numerator = exp(-1.0 * (num_a + num_b));
             double denominator = 2.0 * M_PI * std_landmark[0] * std_landmark[1];
-            new_weight = numerator / denominator;
+            new_weight *= numerator / denominator;
+            
+            cout<<"numerator ";
+            cout<<numerator;
+            cout<<"denominator ";
+            cout<<denominator;
+            
         }
         particles[i].weight = new_weight;
-        weights[i] = new_weight;
-        
-        
+        weights[i] = particles[i].weight;
+        //cout<<weights[i];
+        */
     }
     
     
